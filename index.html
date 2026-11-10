@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restbook</title>
+<style>
+:root{--r:#d32f2f;--bg:#140b0b;--card:#241414;--tx:#f5eaea;--mut:#b99}
+*{box-sizing:border-box}
+body{margin:0;display:flex;height:100vh;background:var(--bg);color:var(--tx);font:18px system-ui,Segoe UI,sans-serif}
+#side{width:240px;background:#1c0f0f;padding:16px;display:flex;flex-direction:column;gap:6px;overflow:auto}
+#side h1{color:var(--r);margin:0 0 12px;font-size:28px}
+#main{flex:1;overflow:auto;padding:28px;display:flex;flex-direction:column;gap:12px}
+button{font:inherit;color:inherit;background:var(--card);border:2px solid transparent;border-radius:10px;padding:12px 14px;text-align:left;cursor:pointer;width:100%}
+button:focus,button:hover{outline:none;border-color:var(--r);background:#3a1a1a}
+#side button.sel{background:var(--r)}
+h2{color:var(--r);margin:0 0 4px}
+.sub{color:var(--mut);font-size:14px}
+.row{display:flex;gap:12px;overflow:auto}
+.row button{width:auto;min-width:190px}
+.media{color:var(--r);font-size:15px}
+.av{display:inline-block;width:42px;height:42px;border-radius:50%;background:var(--r);text-align:center;line-height:42px;margin-right:10px;vertical-align:middle;color:#fff}
+.tog{display:flex;justify-content:space-between}
+.tog b{color:var(--r)}
+</style>
+</head>
+<body>
+<nav id="side"></nav>
+<main id="main"></main>
+<script>
+const USERS=[
+ {id:0,n:"Aap (You)",bio:"Restbook par naye!",city:"Karachi",work:"Software Developer",edu:"University of Karachi",bd:"1 Jan 1995",rel:"Single",fr:[1,2,3,4]},
+ {id:1,n:"Amina Khan",city:"Lahore",work:"Designer"},
+ {id:2,n:"Daniel Reyes",city:"Dubai",work:"Chef"},
+ {id:3,n:"Sofia Lindqvist",city:"Stockholm",work:"Freelancer"},
+ {id:4,n:"Omar Farouk",city:"Cairo",work:"Engineer"}
+];
+const uname=id=>(USERS.find(u=>u.id===id)||{n:"Page"}).n;
+const REACT=[["👍","Like"],["❤️","Love"],["😂","Haha"],["😮","Wow"],["😢","Sad"],["😡","Angry"]];
+// s: F=friend P=page G=group | m: N=none P=photo V=video | t = minutes ago
+const POSTS=[
+ {id:1,a:1,s:"F",n:"Amina Khan",x:"Pehli marathon complete ki! Sab ka shukriya.",m:"P",pv:"friends",t:120,r:128,c:[[2,"Mubarak ho!"],[3,"Zabardast!"]],sh:3},
+ {id:2,a:2,s:"F",n:"Daniel Reyes",x:"Aaj raat homemade ramen. Recipe chahiye?",m:"V",pv:"public",t:240,r:87,c:[[1,"Haan please!"]],sh:6},
+ {id:3,a:10,s:"P",n:"Tech Daily",x:"Android TV ke liye naye Compose APIs aa gaye.",m:"N",pv:"public",t:300,r:380,c:[[4,"Useful!"]],sh:55},
+ {id:4,a:3,s:"G",n:"Photography Lovers",x:"Chhat se aaj ka sunset.",m:"P",pv:"public",t:360,r:363,c:[],sh:14},
+ {id:5,a:4,s:"F",n:"Omar Farouk",x:"Match dekhne aa rahe ho aaj raat?",m:"N",pv:"friends",t:1440,r:50,c:[[0,"Pakka aaunga"]],sh:1}
+];
+const STORIES=[[1,"Marathon day",5],[2,"Ramen time",12],[3,"Golden hour",20]];
+const LISTS={
+ Friends:()=>USERS[0].fr.map(i=>{const u=USERS[i];return[u.n,u.city+" · "+u.work]}),
+ Groups:()=>[["Photography Lovers","12400 members · Apni photos share karein"],["Android TV Devs","5300 members · TV app development"]],
+ Pages:()=>[["Tech Daily","News & Media · 120000 followers"],["Karachi Foodies","Restaurant Guide · 45000 followers"]],
+ Events:()=>[["Football Night","Sat 8:00 PM · Omar ka ghar · 14 going"],["Dev Meetup","Sun 5:00 PM · Karachi Tech Hub · 60 going"]],
+ Watch:()=>POSTS.filter(p=>p.m==="V").map(p=>[p.n,p.x]),
+ Messages:()=>[["Amina Khan","Haan zaroor · 10:05"],["Daniel Reyes","Recipe bhej deta hoon · Yesterday"]],
+ Notifications:()=>[["Amina Khan ne aapki post par comment kiya","5m"],["Daniel Reyes ne aapko event mein invite kiya","1h"],["Photography Lovers mein 3 nayi posts","3h"]]
+};
+const SECTIONS=["Feed","Profile","Friends","Groups","Pages","Events","Watch","Messages","Notifications","Feed Settings"];
+
+let sec="Feed",mine={};
+const DEF={friends:1,pages:1,groups:1,videos:1,photos:1,stories:1,sort:"latest",fav:[],mute:[]};
+let P=Object.assign({},DEF);
+try{const s=localStorage.getItem("restbook_prefs");if(s)P=Object.assign({},DEF,JSON.parse(s))}catch(e){}
+const save=()=>{try{localStorage.setItem("restbook_prefs",JSON.stringify(P))}catch(e){}};
+const score=p=>p.r+p.c.length*3+p.sh*5;
+const side=document.getElementById("side"),main=document.getElementById("main");
+
+function feed(){
+ const key={F:"friends",P:"pages",G:"groups"};
+ let ps=POSTS.filter(p=>!P.mute.includes(p.a)&&P[key[p.s]]&&(p.m!=="V"||P.videos)&&(p.m!=="P"||P.photos));
+ ps.sort((x,y)=>(P.fav.includes(y.a)-P.fav.includes(x.a))||(P.sort==="latest"?x.t-y.t:score(y)-score(x)));
+ let h="";
+ if(P.stories)h+='<div class="row">'+STORIES.map(s=>`<button><div>${uname(s[0])}</div><div class="sub">${s[1]} · ${s[2]}h left</div></button>`).join("")+"</div>";
+ if(!ps.length)h+="<p>Feed khaali hai. Feed Settings mein filters check karein.</p>";
+ return h+ps.map(p=>{
+  const m=mine[p.id],tot=p.r+(m!=null?1:0);
+  const c=p.c[0]?`<div class="sub">${uname(p.c[0][0])}: ${p.c[0][1]}</div>`:"";
+  return `<button data-act="react" data-id="${p.id}"><span class="av">${p.n[0]}</span><b>${p.n}</b> <span class="sub">${p.t}m · ${p.pv}</span>
+  <p>${p.x}</p>${p.m!=="N"?`<div class="media">[${p.m==="V"?"VIDEO":"PHOTO"}]</div>`:""}
+  <div class="sub">${m!=null?REACT[m][0]+" "+REACT[m][1]+" · ":""}${tot} reactions · ${p.c.length} comments · ${p.sh} shares</div>${c}</button>`}).join("");
+}
+function profile(){const u=USERS[0];return `<h2>${u.n}</h2><p>${u.bio}</p><p>City: ${u.city}</p><p>Work: ${u.work}</p><p>Education: ${u.edu}</p><p>Birthday: ${u.bd}</p><p>Relationship: ${u.rel}</p><p>Friends: ${u.fr.length}</p>`}
+function list(name){return `<h2>${name}</h2>`+LISTS[name]().map(r=>`<button><div>${r[0]}</div><div class="sub">${r[1]}</div></button>`).join("")}
+function tog(label,on,act,arg){return `<button class="tog" data-act="${act}" data-arg="${arg}"><span>${label}</span><b>${on?"ON":"OFF"}</b></button>`}
+function settings(){
+ const k=[["friends","Dosto ki posts"],["pages","Pages ki posts"],["groups","Groups ki posts"],["videos","Videos"],["photos","Photos"],["stories","Stories"]];
+ const others=USERS.filter(u=>u.id);
+ return `<h2>Feed Settings (apni marzi se feed banayein)</h2>`+k.map(x=>tog(x[1],P[x[0]],"flag",x[0])).join("")+
+ `<button class="tog" data-act="sort"><span>Sort by</span><b>${P.sort==="latest"?"Latest":"Top posts"}</b></button>`+
+ `<h2>Favourites (upar dikhein)</h2>`+others.map(u=>tog(u.n,P.fav.includes(u.id),"fav",u.id)).join("")+
+ `<h2>Mute (posts na dikhein)</h2>`+others.map(u=>tog(u.n,P.mute.includes(u.id),"mute",u.id)).join("");
+}
+function render(keepIdx){
+ side.innerHTML="<h1>Restbook</h1>"+SECTIONS.map(s=>`<button class="${s===sec?"sel":""}" data-sec="${s}">${s}</button>`).join("");
+ main.innerHTML=sec==="Feed"?feed():sec==="Profile"?profile():sec==="Feed Settings"?settings():list(sec);
+ if(keepIdx!=null){const b=main.querySelectorAll("button")[keepIdx];if(b)b.focus()}
+}
+const toggleIn=(arr,id)=>arr.includes(id)?arr.filter(x=>x!==id):arr.concat(id);
+document.addEventListener("click",e=>{
+ const b=e.target.closest("button");if(!b)return;
+ if(b.dataset.sec){sec=b.dataset.sec;render();main.scrollTop=0;const nb=side.querySelector(".sel");if(nb)nb.focus();return}
+ const idx=[...main.querySelectorAll("button")].indexOf(b),a=b.dataset.act;if(!a)return;
+ if(a==="react"){const id=+b.dataset.id,m=mine[id];const n=m==null?0:m+1;if(n>=REACT.length)delete mine[id];else mine[id]=n}
+ if(a==="flag")P[b.dataset.arg]=P[b.dataset.arg]?0:1;
+ if(a==="sort")P.sort=P.sort==="latest"?"top":"latest";
+ if(a==="fav")P.fav=toggleIn(P.fav,+b.dataset.arg);
+ if(a==="mute")P.mute=toggleIn(P.mute,+b.dataset.arg);
+ save();render(idx);
+});
+// Remote / keyboard navigation (arrow keys + Enter)
+document.addEventListener("keydown",e=>{
+ const k=e.key;if(!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(k))return;
+ e.preventDefault();
+ let a=document.activeElement;
+ if(!a||a===document.body){(side.querySelector(".sel")||side.querySelector("button")).focus();return}
+ const inSide=side.contains(a),grp=[...(inSide?side:main).querySelectorAll("button")],i=grp.indexOf(a);
+ if(k==="ArrowDown"&&grp[i+1]){grp[i+1].focus();grp[i+1].scrollIntoView({block:"center"})}
+ if(k==="ArrowUp"&&grp[i-1]){grp[i-1].focus();grp[i-1].scrollIntoView({block:"center"})}
+ if(k==="ArrowLeft"&&!inSide)(side.querySelector(".sel")||side.querySelector("button")).focus();
+ if(k==="ArrowRight"&&inSide){const f=main.querySelector("button");if(f)f.focus()}
+});
+render();
+</script>
+</body>
+</html>

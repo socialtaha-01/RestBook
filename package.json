@@ -1,0 +1,22 @@
+{
+  "name": "restbook",
+  "version": "1.0.0",
+  "description": "Restbook desktop app",
+  "main": "main.js",
+  "author": "Restbook",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.example.restbook",
+    "productName": "Restbook",
+    "files": ["main.js", "index.html"],
+    "win": { "target": "portable" },
+    "portable": { "artifactName": "Restbook.exe" }
+  }
+}
