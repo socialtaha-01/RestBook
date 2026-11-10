@@ -16,11 +16,72 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
-      - run: gradle -p android assembleDebug
+      - name: Assemble Android project
+        shell: bash
+        run: |
+          mkdir -p proj/app/src/main/java/com/example/restbook
+          cp MainActivity.kt MockData.kt Models.kt proj/app/src/main/java/com/example/restbook/
+          cp AndroidManifest.xml proj/app/src/main/
+          cat > proj/settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "Restbook"
+          include(":app")
+          EOF
+          cat > proj/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.5.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+          }
+          EOF
+          cat > proj/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF
+          cat > proj/app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.example.restbook"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.example.restbook"
+                  minSdk = 21
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              buildFeatures { compose = true }
+              composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+          dependencies {
+              implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.foundation:foundation")
+              implementation("androidx.activity:activity-compose:1.9.2")
+              implementation("androidx.tv:tv-material:1.0.0")
+              implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
+          }
+          EOF
+      - name: Build APK
+        run: gradle -p proj assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: Restbook-AndroidTV-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: proj/app/build/outputs/apk/debug/*.apk
 
   windows-exe:
     runs-on: windows-latest
@@ -29,11 +90,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-        working-directory: desktop
-      - run: npm run dist
-        working-directory: desktop
+      - name: Assemble desktop app
+        shell: bash
+        run: |
+          mkdir desktop-app
+          cp main.js index.html package.json desktop-app/
+      - name: Build EXE
+        working-directory: desktop-app
+        run: |
+          npm install
+          npm run dist
       - uses: actions/upload-artifact@v4
         with:
           name: Restbook-Windows-EXE
-          path: desktop/dist/Restbook.exe
+          path: desktop-app/dist/Restbook.exe
